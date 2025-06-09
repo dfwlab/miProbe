@@ -73,7 +73,7 @@ peptide_ids = [pid.strip() for pid in peptide_ids_input.strip().splitlines() if 
 # 按钮触发建模
 if st.button("🚀 开始预测(sleep 1 second for each peptide)"):
     clf = joblib.load(MODEL_PATH)
-    with st.spinner("正在下载 embedding 并训练模型..."):
+    with st.spinner("正在下载 embedding 并预测结果..."):
         for pid in peptide_ids:
             X = get_numpy_dataset([pid], embedding_type='prottrans')
             pred = clf.predict(X)[0]
