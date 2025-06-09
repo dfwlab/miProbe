@@ -17,7 +17,7 @@ X = get_numpy_dataset(peptide_ids, embedding_type='prottrans')
 st.code(code, language="python")
 if st.button("获取信息"):
     peptide_ids = ['PEP0001', 'PEP0002', 'PEP0003']
-    st.write(get_numpy_dataset(peptide_ids, embedding_type='prottrans')）
+    st.write(get_numpy_dataset(peptide_ids, embedding_type='prottrans'))
 
 ################
 st.markdown("## 2. 使用预训练的 embedding 特征 + scikit-learn 分类器。")
