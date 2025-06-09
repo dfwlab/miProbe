@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from peptide_embedding_toolkit import get_numpy_dataset
+import joblib
 
 st.set_page_config(page_title="Demo", layout="centered")
 
@@ -39,6 +40,7 @@ if len(labels) != len(peptide_ids):
     st.stop()
 
 # 按钮触发建模
+MODEL_PATH = "peptide_model.pkl"
 if st.button("🚀 开始训练模型"):
     with st.spinner("正在下载 embedding 并训练模型..."):
         X = get_numpy_dataset(peptide_ids, embedding_type='prottrans')
@@ -54,6 +56,9 @@ if st.button("🚀 开始训练模型"):
         st.text("📈 分类报告：")
         st.code(report)
 
+        # 保存模型
+        joblib.dump(clf, MODEL_PATH)
+        
         # 展示预测结果
         #st.text("🔍 预测结果：")
         #for pid, pred in zip(peptide_ids, preds):
@@ -66,6 +71,7 @@ peptide_ids_input = st.text_area("🔢 输入多肽ID（每行一个）：", "PE
 peptide_ids = [pid.strip() for pid in peptide_ids_input.strip().splitlines() if pid.strip()]
 # 按钮触发建模
 if st.button("🚀 开始预测"):
+    clf = joblib.load(MODEL_PATH)
     with st.spinner("正在下载 embedding 并训练模型..."):
         for peptide_id in peptide_ids:
             X = get_numpy_dataset([peptide_id], embedding_type='prottrans')
