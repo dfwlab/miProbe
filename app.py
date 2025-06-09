@@ -4,6 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from peptide_embedding_toolkit import get_numpy_dataset
 import joblib
+import time
 
 st.set_page_config(page_title="Demo", layout="centered")
 
@@ -70,11 +71,12 @@ st.markdown("## 3. 实时获取多肽embedding，通过模型批量预测多肽�
 peptide_ids_input = st.text_area("🔢 输入多肽ID（每行一个）：", "PEP0006\nPEP0007\nPEP0008\nPEP0009\nPEP0010")
 peptide_ids = [pid.strip() for pid in peptide_ids_input.strip().splitlines() if pid.strip()]
 # 按钮触发建模
-if st.button("🚀 开始预测"):
+if st.button("🚀 开始预测(sleep 1 second for each peptide)"):
     clf = joblib.load(MODEL_PATH)
     with st.spinner("正在下载 embedding 并训练模型..."):
         for pid in peptide_ids:
             X = get_numpy_dataset([pid], embedding_type='prottrans')
             pred = clf.predict(X)[0]
             st.write(f"{pid} → 预测标签: {pred}")
+            time.sleep(1)
 
