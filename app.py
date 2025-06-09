@@ -73,8 +73,8 @@ peptide_ids = [pid.strip() for pid in peptide_ids_input.strip().splitlines() if 
 if st.button("🚀 开始预测"):
     clf = joblib.load(MODEL_PATH)
     with st.spinner("正在下载 embedding 并训练模型..."):
-        for peptide_id in peptide_ids:
-            X = get_numpy_dataset([peptide_id], embedding_type='prottrans')
+        for pid in peptide_ids:
+            X = get_numpy_dataset([pid], embedding_type='prottrans')
             pred = clf.predict(X)[0]
             st.write(f"{pid} → 预测标签: {pred}")
 
