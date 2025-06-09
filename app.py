@@ -6,7 +6,7 @@ from peptide_embedding_toolkit import get_numpy_dataset
 import joblib
 import time
 
-st.set_page_config(page_title="MiPEPdb", layout="centered")
+st.set_page_config(page_title="MiPEPdb", layout="wide")
 
 st.title("🔬 MiPEPdb usage Demo")
 
