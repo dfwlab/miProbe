@@ -21,6 +21,7 @@ if st.button("获取信息"):
     peptide_ids = ['PEP0001', 'PEP0002', 'PEP0003']
     st.write(get_numpy_dataset(peptide_ids, embedding_type='prottrans'))
 
+st.html("<hr/>")
 ################
 st.markdown("## 2. 使用预训练的 embedding 特征 + scikit-learn 分类器。")
 # 输入多肽ID
@@ -64,6 +65,8 @@ if st.button("🚀 开始训练模型"):
         #st.text("🔍 预测结果：")
         #for pid, pred in zip(peptide_ids, preds):
         #    st.write(f"{pid} → 预测标签: {pred}")
+
+st.html("<hr/>")
 
 ################
 st.markdown("## 3. 实时获取多肽embedding，通过模型批量预测多肽特征。")
