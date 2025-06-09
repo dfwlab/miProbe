@@ -6,9 +6,9 @@ from peptide_embedding_toolkit import get_numpy_dataset
 import joblib
 import time
 
-st.set_page_config(page_title="Demo", layout="centered")
+st.set_page_config(page_title="MiPEPdb", layout="centered")
 
-st.title("🔬 Peptide Embedding Database Demo")
+st.title("🔬 MiPEPdb usage Demo")
 
 ################
 st.markdown("## 1. 通过API获取多肽序列或embedding数据")
