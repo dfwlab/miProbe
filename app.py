@@ -1,85 +1,85 @@
 import streamlit as st
 import numpy as np
-import joblib
-import time
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
-from miprobe_toolkit import get_numpy_dataset
+from miprobe import get_numpy_dataset
+import joblib
+import time
 
-st.set_page_config(page_title="miProbe", layout="wide")
+st.set_page_config(page_title="MiPEPdb", layout="wide")
 
-st.title("🔬 miProbe Toolkit Demo")
+st.title("🔬 MiPEPdb usage Demo")
 
-# ------------------------
-# Section 1: API Usage
-# ------------------------
-st.markdown("## 1. Retrieve peptide sequence or embedding via API")
-code = '''from miprobe_toolkit import get_numpy_dataset
-peptide_ids = ['ORF050.00000001', 'ORF050.00000002', 'ORF050.00000003']
+################
+st.markdown("## 1. 通过API获取多肽序列或embedding数据")
+code = '''from miprobe import get_numpy_dataset
+peptide_ids = ['PEP0001', 'PEP0002', 'PEP0003']
 X = get_numpy_dataset(peptide_ids, embedding_type='prottrans')
 '''
 st.code(code, language="python")
-
-if st.button("Fetch data via API"):
-    peptide_ids = ['ORF050.00000001', 'ORF050.00000002', 'ORF050.00000003']
+if st.button("获取信息"):
+    peptide_ids = ['PEP0001', 'PEP0002', 'PEP0003']
     st.write(get_numpy_dataset(peptide_ids, embedding_type='prottrans'))
 
-st.divider()
-
-# ------------------------
-# Section 2: Train model
-# ------------------------
-st.markdown("## 2. Train a scikit-learn classifier using peptide embeddings")
-
-# Input peptide IDs
-peptide_ids_input = st.text_area("🔢 Enter peptide IDs (one per line):", "ORF050.00000001\nORF050.00000002\nORF050.00000003\nORF050.00000004\nORF050.00000005")
+st.html("<hr/>")
+################
+st.markdown("## 2. 使用预训练的 embedding 特征 + scikit-learn 分类器。")
+# 输入多肽ID
+peptide_ids_input = st.text_area("🔢 输入多肽ID（每行一个）：", "PEP0001\nPEP0002\nPEP0003\nPEP0004\nPEP0005")
 peptide_ids = [pid.strip() for pid in peptide_ids_input.strip().splitlines() if pid.strip()]
 
-# Input labels
-labels_input = st.text_input("🧬 Enter binary labels (comma-separated):", "1,0,1,1,0")
+# 输入标签
+labels_input = st.text_input("🧬 输入对应的功能标签（如0/1，逗号分隔）", "1,0,1,1,0")
 try:
     labels = [int(x) for x in labels_input.strip().split(',')]
 except:
-    st.error("Label format error. Please use comma-separated values like 1,0,1")
+    st.error("标签格式错误，请用逗号分隔，如 1,0,1")
     st.stop()
-
-# Validate input match
+    
+# 验证输入匹配
 if len(labels) != len(peptide_ids):
-    st.error("Number of labels does not match number of peptide IDs.")
+    st.error("多肽数量与标签数量不一致")
     st.stop()
 
-# Train and save model
+# 按钮触发建模
 MODEL_PATH = "peptide_model.pkl"
-if st.button("🚀 Train Model"):
-    with st.spinner("Fetching embeddings and training model..."):
+if st.button("🚀 开始训练模型"):
+    with st.spinner("正在下载 embedding 并训练模型..."):
         X = get_numpy_dataset(peptide_ids, embedding_type='prottrans')
         y = np.array(labels)
 
+        # 简单分类器
         clf = RandomForestClassifier(n_estimators=100, random_state=42)
         clf.fit(X, y)
 
+        # 展示训练报告
         preds = clf.predict(X)
         report = classification_report(y, preds, output_dict=False)
-        st.text("📈 Classification Report:")
+        st.text("📈 分类报告：")
         st.code(report)
 
+        # 保存模型
         joblib.dump(clf, MODEL_PATH)
+        
+        # 展示预测结果
+        #st.text("🔍 预测结果：")
+        #for pid, pred in zip(peptide_ids, preds):
+        #    st.write(f"{pid} → 预测标签: {pred}")
 
-st.divider()
+st.html("<hr/>")
 
-# ------------------------
-# Section 3: Predict new peptides
-# ------------------------
-st.markdown("## 3. Predict peptide function with saved model")
-
-peptide_ids_input = st.text_area("🔢 Enter new peptide IDs (one per line):", "ORF050.00000006\nORF050.00000007\nORF050.00000008\nORF050.00000009\nORF050.00000010")
+################
+st.markdown("## 3. 实时获取多肽embedding，通过模型批量预测多肽特征。")
+# 输入多肽ID
+peptide_ids_input = st.text_area("🔢 输入多肽ID（每行一个）：", "PEP0006\nPEP0007\nPEP0008\nPEP0009\nPEP0010")
 peptide_ids = [pid.strip() for pid in peptide_ids_input.strip().splitlines() if pid.strip()]
-
-if st.button("🚀 Predict Function"):
+# 按钮触发建模
+if st.button("🚀 开始预测"):
     clf = joblib.load(MODEL_PATH)
-    with st.spinner("Predicting (sleep 1s per peptide for demo)..."):
+    with st.spinner("正在下载 embedding 并预测结果(sleep 1 second for each peptide用于演示)..."):
         for pid in peptide_ids:
             X = get_numpy_dataset([pid], embedding_type='prottrans')
             pred = clf.predict(X)[0]
-            st.write(f"{pid} → predicted label: {pred}")
+            st.write(f"{pid} → 预测标签: {pred}")
             time.sleep(1)
+
