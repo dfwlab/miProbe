@@ -1,3 +1,6 @@
+import miprobe
+print("miProbe loaded from:", miprobe.__file__)
+
 import streamlit as st
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
