@@ -1,5 +1,7 @@
 streamlit
 scikit-learn
-requests
-torch
 numpy
+torch
+requests
+joblib
+miprobe @ file://./
