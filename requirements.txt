@@ -4,4 +4,4 @@ numpy
 torch
 requests
 joblib
-miprobe @ file://./
+-e . # 👈 让 pip 安装当前目录的 miprobe 包
