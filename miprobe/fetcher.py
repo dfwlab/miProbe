@@ -26,6 +26,11 @@ from requests.exceptions import RequestException, Timeout
 BASE_URL = "https://www.biosino.org/iMAC/miProbe/api"
 REQUEST_TIMEOUT = 10
 
+# 设置默认请求头，避免 403 错误
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
+
 # -----------------------------------------------------------------------------
 # Global session for connection pooling
 # -----------------------------------------------------------------------------
@@ -36,6 +41,8 @@ def _get_session() -> requests.Session:
     global _session
     if _session is None:
         _session = requests.Session()
+        # 设置默认请求头以避免 403 错误
+        _session.headers.update(DEFAULT_HEADERS)
     return _session
 
 # -----------------------------------------------------------------------------
@@ -77,10 +84,10 @@ def get_sequence_by_id(pid: str, session: Optional[requests.Session] = None) -> 
         r.raise_for_status()
         
         response_data = r.json()
-        if "sequence" not in response_data:
+        if "protein_sequence" not in response_data:
             raise ValueError(f"Invalid response format: missing 'sequence' field")
         
-        return response_data["sequence"]
+        return response_data["protein_sequence"]
         
     except Timeout:
         logging.error("Timeout while fetching sequence for ID: %s", pid)
@@ -127,13 +134,14 @@ def get_embedding_by_id(
     session = session or _get_session()
     url = f"{BASE_URL}/embedding"
     params = {"id": pid, "format": "json"}
+    headers = {"accept": "application/json"}
     
     if embedding_model:
-        params["model"] = embedding_model
+        params["model_type"] = embedding_model
 
     try:
         logging.debug("Requesting embedding: %s params=%s", url, params)
-        r = session.get(url, params=params, timeout=REQUEST_TIMEOUT)
+        r = session.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
         r.raise_for_status()
         
         response_data = r.json()
