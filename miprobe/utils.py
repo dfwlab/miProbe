@@ -26,7 +26,7 @@ from .fetcher import PeptideFetcher
 from .dataset import PeptideDataset
 
 
-def get_numpy_dataset(ids: List[str], embedding_model: str = "prottrans") -> np.ndarray:
+def get_numpy_dataset(ids: List[str], embedding_model: str = "t5") -> np.ndarray:
     """Return embeddings as a numpy.ndarray suitable for scikit-learn.
 
     Examples
@@ -43,7 +43,7 @@ def get_torch_dataloader(
     labels: Optional[List[int]] = None,
     *,
     batch_size: int = 32,
-    embedding_model: str = "prottrans",
+    embedding_model: str = "t5",
     shuffle: bool = True,
 ) -> DataLoader:
     """Return a torch.utils.data.DataLoader for training.
@@ -56,7 +56,7 @@ def get_torch_dataloader(
         Supervised classification/regression labels.
     batch_size : int, default 32
         Mini-batch size.
-    embedding_model : str, default "prottrans"
+    embedding_model : str, default "t5" for "prottrans_t5_xl_u5"
         Name of embedding model.
     shuffle : bool, default True
         Whether to shuffle each epoch.
@@ -65,7 +65,7 @@ def get_torch_dataloader(
     return DataLoader(ds, batch_size=batch_size, shuffle=shuffle)
 
 
-def get_transformer_input(ids: List[str], embedding_model: str = "prottrans") -> torch.Tensor:
+def get_transformer_input(ids: List[str], embedding_model: str = "t5") -> torch.Tensor:
     """Return embeddings stacked into a single torch.Tensor.
 
     This is convenient when passing data into Hugging Face Transformer
