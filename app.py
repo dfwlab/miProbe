@@ -22,7 +22,7 @@ st.markdown("## 1. Retrieve peptide embedding via API")
 st.code(
     '''from miprobe import get_numpy_dataset
 peptide_ids = ['ORF050.00000001', 'ORF050.00000002', 'ORF050.00000003']
-X = get_numpy_dataset(peptide_ids, embedding_model='prottrans')''',
+X = get_numpy_dataset(peptide_ids, embedding_model='t5')''',
     language="python"
 )
 
