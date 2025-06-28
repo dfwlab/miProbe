@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 from .fetcher import PeptideFetcher
 
 class PeptideDataset(Dataset):
-    def __init__(self, ids, labels=None, embedding_model='prottrans'):
+    def __init__(self, ids, labels=None, embedding_model='t5'):
         self.fetcher = PeptideFetcher(embedding_model)
         self.ids = ids
         self.labels = labels
