@@ -1,0 +1,22 @@
+[project]
+name = "miprobe-streamlit"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "joblib>=1.5.3",
+    "numpy>=2.4.4",
+    "python-dotenv>=1.2.2",
+    "requests>=2.33.1",
+    "scikit-learn>=1.8.0",
+    "streamlit>=1.56.0",
+    "torch>=2.11.0",
+]
+
+
+[[tool.uv.index]]
+# Optional name for the index.
+name = "tsinghua"
+# Required URL for the index.
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
