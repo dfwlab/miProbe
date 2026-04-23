@@ -1,2 +1,10 @@
 .cursorrules
 test.ipynb
+
+.env
+
+ref/
+
+*.pyc
+
+*.tar
