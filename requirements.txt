@@ -3,5 +3,6 @@ scikit-learn
 numpy
 torch
 requests
+dotenv
 joblib
 -e . # 👈 让 pip 安装当前目录的 miprobe 包
