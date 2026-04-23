@@ -10,50 +10,42 @@ Main features
 
 Author  : Dingfeng Wu
 Created : 2025‑06‑20
-Latest Modified by: Peigen Yao @ 2026‑04‑17
+Latest Modified by: Peigen Yao @ 2026‑04‑23
 License : MIT
 """
 
 import logging
-import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import requests
-from dotenv import load_dotenv
 from requests.exceptions import RequestException, Timeout
-
-load_dotenv()
 
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-if os.getenv("TEST_MODE") == "True":
-    BASE_URL = os.getenv("MIPROBE_TEST_BASE_URL")
-else:
-    BASE_URL = "https://www.biosino.org/iMAC/miProbe/api"
-
-if not BASE_URL:
-    BASE_URL = "https://www.biosino.org/iMAC/miProbe/api"
-BASE_URL = BASE_URL.rstrip("/")
 
 
-def _int_from_env(names: Sequence[str], default: int) -> int:
-    for name in names:
-        raw = os.getenv(name)
-        if raw is None or raw == "":
-            continue
-        try:
-            return int(raw)
-        except ValueError:
-            logging.warning("Invalid integer for %s=%r, using default %s", name, raw, default)
-    return default
+BASE_URL = "https://www.biosino.org/iMAC/miProbe/api"
 
 
-REQUEST_TIMEOUT = _int_from_env(("MIPROBE_REQUEST_TIMEOUT", "REQUEST_TIME_LIMIT"), 10)
-REQUEST_NUMBER_LIMIT = _int_from_env(("REQUEST_NUMBER_LIMIT",), 10)
+# Default for typical GETs and precomputed embedding fetches.
+REQUEST_TIMEOUT = 60
+# POST /embedding-search/search runs ProtT5 + FAISS; responses often exceed a short read window.
+EMBEDDING_SEARCH_TIMEOUT = 120
+REQUEST_NUMBER_LIMIT = 10
 
 # Set default headers to avoid 403 errors
 DEFAULT_HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -86,7 +78,77 @@ def _prune_params(params: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
 
 
 # -----------------------------------------------------------------------------
-# Search API types (aligned with ref/routers: proteins, embedding-search, bio-source)
+# Peptide property filters (search-peptide-prop): human-readable labels -> API int codes
+# -----------------------------------------------------------------------------
+
+LOCALIZATION_LABEL_TO_CODE: Dict[str, int] = {
+    "Others": 0,
+    "Cell-Membrane": 1,
+    "Cytoplasm": 2,
+    "Extracellular": 3,
+}
+LOCALIZATION_CODE_TO_LABEL: Dict[int, str] = {
+    v: k for k, v in LOCALIZATION_LABEL_TO_CODE.items()
+}
+_VALID_LOCALIZATION_CODES = frozenset(LOCALIZATION_CODE_TO_LABEL)
+
+MEMBRANE_LABEL_TO_CODE: Dict[str, int] = {
+    "Membrane bound": 0,
+    "Soluble": 1,
+}
+MEMBRANE_CODE_TO_LABEL: Dict[int, str] = {
+    v: k for k, v in MEMBRANE_LABEL_TO_CODE.items()
+}
+_VALID_MEMBRANE_CODES = frozenset(MEMBRANE_CODE_TO_LABEL)
+
+
+def _parse_localization_for_api(
+    value: Optional[Union[int, str]],
+) -> Optional[int]:
+    """Map localization label (exact string) or int code to API int. None passes through."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        if value not in _VALID_LOCALIZATION_CODES:
+            raise ValueError(
+                "localization int must be in "
+                f"{sorted(_VALID_LOCALIZATION_CODES)}, got {value!r}"
+            )
+        return value
+    if isinstance(value, str):
+        if value not in LOCALIZATION_LABEL_TO_CODE:
+            raise ValueError(
+                "localization str must be exactly one of "
+                f"{list(LOCALIZATION_LABEL_TO_CODE.keys())}, got {value!r}"
+            )
+        return LOCALIZATION_LABEL_TO_CODE[value]
+    raise TypeError(
+        f"localization must be int, str, or None, got {type(value).__name__}"
+    )
+
+
+def _parse_membrane_for_api(value: Optional[Union[int, str]]) -> Optional[int]:
+    """Map membrane label (exact string) or int code to API int. None passes through."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        if value not in _VALID_MEMBRANE_CODES:
+            raise ValueError(
+                f"membrane int must be in {sorted(_VALID_MEMBRANE_CODES)}, got {value!r}"
+            )
+        return value
+    if isinstance(value, str):
+        if value not in MEMBRANE_LABEL_TO_CODE:
+            raise ValueError(
+                "membrane str must be exactly one of "
+                f"{list(MEMBRANE_LABEL_TO_CODE.keys())}, got {value!r}"
+            )
+        return MEMBRANE_LABEL_TO_CODE[value]
+    raise TypeError(f"membrane must be int, str, or None, got {type(value).__name__}")
+
+
+# -----------------------------------------------------------------------------
+# Search API types (aligned with ref/routers: peptide routes on /proteins, embedding-search, bio-source)
 # -----------------------------------------------------------------------------
 
 
@@ -192,7 +254,7 @@ class TaxonomyDrilldownResult:
 
 
 @dataclass(frozen=True)
-class ProteinMainRow:
+class PeptideMainRow:
     internal_id: int
     accession_id: str
     seq_length: int
@@ -201,12 +263,12 @@ class ProteinMainRow:
 
 
 @dataclass(frozen=True)
-class ProteinsByInternalIdResult:
-    data: List[ProteinMainRow]
+class PeptidesByInternalIdResult:
+    data: List[PeptideMainRow]
 
 
 @dataclass(frozen=True)
-class ProteinPropertiesRecord:
+class PeptidePropertiesRecord:
     internal_id: int
     seq_length: int
     camp_score: float
@@ -235,7 +297,7 @@ class ProteinPropertiesRecord:
 
 
 @dataclass(frozen=True)
-class ProteinSourceRecord:
+class PeptideSourceRecord:
     source_id: int
     genome_id: Optional[str] = None
     biome: Optional[str] = None
@@ -256,21 +318,21 @@ class ProteinSourceRecord:
 
 
 @dataclass(frozen=True)
-class PaginatedProteinSourceResult:
+class PaginatedPeptideSourceResult:
     total: int
     page: int
     page_size: int
     has_next: bool
-    data: List[ProteinSourceRecord]
+    data: List[PeptideSourceRecord]
 
 
 @dataclass(frozen=True)
-class PaginatedProteinMainResult:
+class PaginatedPeptideMainResult:
     total: int
     page: int
     page_size: int
     has_next: bool
-    data: List[ProteinMainRow]
+    data: List[PeptideMainRow]
 
 
 class SearchStrategyKind(str, Enum):
@@ -281,10 +343,10 @@ class SearchStrategyKind(str, Enum):
     PEPTIDE_SOURCE_LINK = "peptide_source_link"
     BIO_SOURCE = "bio_source"
     TAXONOMY = "taxonomy"
-    PROTEIN_BY_INTERNAL_ID = "protein_by_internal_id"
-    PROTEIN_PROPERTIES = "protein_properties"
-    PROTEIN_SOURCES = "protein_sources"
-    PROTEIN_BY_FAMILY = "protein_by_family"
+    PEPTIDE_BY_INTERNAL_ID = "peptide_by_internal_id"
+    PEPTIDE_PROPERTIES = "peptide_properties"
+    PEPTIDE_SOURCES = "peptide_sources"
+    PEPTIDE_BY_FAMILY = "peptide_by_family"
 
 
 def embedding_search_similar(
@@ -292,6 +354,7 @@ def embedding_search_similar(
     k: int = 10,
     *,
     session: Optional[requests.Session] = None,
+    timeout: Optional[Union[float, Tuple[float, float]]] = None,
 ) -> EmbeddingSearchResult:
     """POST /embedding-search/search — FAISS similarity by ProtT5 embedding (ref embedding_search)."""
     if len(sequence) < 5:
@@ -300,13 +363,14 @@ def embedding_search_similar(
     session = session or _get_session()
     url = _url("/embedding-search/search")
     payload = {"sequence": sequence, "k": k}
+    read_timeout = timeout if timeout is not None else EMBEDDING_SEARCH_TIMEOUT
     logging.debug("POST %s body keys=%s", url, list(payload.keys()))
     try:
         r = session.post(
             url,
             json=payload,
             headers={**DEFAULT_HEADERS, "accept": "application/json"},
-            timeout=REQUEST_TIMEOUT,
+            timeout=read_timeout,
         )
         r.raise_for_status()
         raw = r.json()
@@ -341,14 +405,21 @@ def search_peptide_prop(
     hydrophobicity_max: Optional[float] = None,
     pis_min: Optional[float] = None,
     pis_max: Optional[float] = None,
-    localization: Optional[int] = None,
-    membrane: Optional[int] = None,
+    localization: Optional[Union[int, str]] = None,
+    membrane: Optional[Union[int, str]] = None,
     page: int = 1,
     page_size: int = 20,
     session: Optional[requests.Session] = None,
 ) -> PaginatedPeptidePropResult:
-    """GET /proteins/search-peptide-prop — property-first scan (ref protein router)."""
+    """GET /proteins/search-peptide-prop — property-first scan (ref peptide router).
+
+    ``localization`` and ``membrane`` may be API ints or exact labels from
+    ``LOCALIZATION_LABEL_TO_CODE`` and ``MEMBRANE_LABEL_TO_CODE``; strings are
+    sent to the API as integers.
+    """
     session = session or _get_session()
+    loc_api = _parse_localization_for_api(localization)
+    mem_api = _parse_membrane_for_api(membrane)
     params: Dict[str, Any] = _prune_params(
         {
             "net_charge_min": net_charge_min,
@@ -357,8 +428,8 @@ def search_peptide_prop(
             "hydrophobicity_max": hydrophobicity_max,
             "pis_min": pis_min,
             "pis_max": pis_max,
-            "localization": localization,
-            "membrane": membrane,
+            "localization": loc_api,
+            "membrane": mem_api,
             "page": page,
             "page_size": page_size,
         }
@@ -417,7 +488,7 @@ def search_peptide_source_link(
     page_size: int = 20,
     session: Optional[requests.Session] = None,
 ) -> PaginatedPeptideSourceLinkResult:
-    """GET /proteins/peptide-source-link-search — peptides by bio-source filters (ref protein)."""
+    """GET /proteins/peptide-source-link-search — peptides by bio-source filters (ref peptide)."""
     session = session or _get_session()
     params: Dict[str, Any] = _prune_params(
         {
@@ -598,7 +669,10 @@ def bio_source_taxonomy(
         logging.exception("bio_source_taxonomy failed")
         raise
 
-    nodes = [TaxonomyNode(value=str(n["value"]), count=int(n["count"])) for n in raw.get("data", [])]
+    nodes = [
+        TaxonomyNode(value=str(n["value"]), count=int(n["count"]))
+        for n in raw.get("data", [])
+    ]
     return TaxonomyDrilldownResult(
         level=str(raw["level"]),
         parent_filters=dict(raw.get("parent_filters") or {}),
@@ -606,13 +680,13 @@ def bio_source_taxonomy(
     )
 
 
-def get_proteins_by_internal_id(
+def get_peptides_by_internal_id(
     internal_id: int,
     *,
     include_sequence: bool = True,
     session: Optional[requests.Session] = None,
-) -> ProteinsByInternalIdResult:
-    """GET /proteins/by-internal-id/{internal_id} (ref protein)."""
+) -> PeptidesByInternalIdResult:
+    """GET /proteins/by-internal-id/{internal_id} (ref peptide)."""
     session = session or _get_session()
     url = _url(f"/proteins/by-internal-id/{internal_id}")
     params = {"include_sequence": "true" if include_sequence else "false"}
@@ -621,14 +695,14 @@ def get_proteins_by_internal_id(
         r.raise_for_status()
         raw = r.json()
     except Timeout:
-        logging.error("Timeout get_proteins_by_internal_id %s", internal_id)
+        logging.error("Timeout get_peptides_by_internal_id %s", internal_id)
         raise
     except RequestException:
-        logging.exception("get_proteins_by_internal_id failed")
+        logging.exception("get_peptides_by_internal_id failed")
         raise
 
     rows = [
-        ProteinMainRow(
+        PeptideMainRow(
             internal_id=int(x["internal_id"]),
             accession_id=str(x["accession_id"]),
             seq_length=int(x["seq_length"]),
@@ -637,16 +711,16 @@ def get_proteins_by_internal_id(
         )
         for x in raw.get("data", [])
     ]
-    return ProteinsByInternalIdResult(data=rows)
+    return PeptidesByInternalIdResult(data=rows)
 
 
-def get_protein_properties_by_internal_id(
+def get_peptide_properties_by_internal_id(
     internal_id: int,
     *,
     seq_length: Optional[int] = None,
     session: Optional[requests.Session] = None,
-) -> ProteinPropertiesRecord:
-    """GET /proteins/by-internal-id/{internal_id}/properties (ref protein)."""
+) -> PeptidePropertiesRecord:
+    """GET /proteins/by-internal-id/{internal_id}/properties (ref peptide)."""
     session = session or _get_session()
     url = _url(f"/proteins/by-internal-id/{internal_id}/properties")
     params = _prune_params({"seq_length": seq_length})
@@ -655,24 +729,24 @@ def get_protein_properties_by_internal_id(
         r.raise_for_status()
         raw = r.json()
     except Timeout:
-        logging.error("Timeout get_protein_properties_by_internal_id %s", internal_id)
+        logging.error("Timeout get_peptide_properties_by_internal_id %s", internal_id)
         raise
     except RequestException:
-        logging.exception("get_protein_properties_by_internal_id failed")
+        logging.exception("get_peptide_properties_by_internal_id failed")
         raise
 
-    return ProteinPropertiesRecord(**raw)
+    return PeptidePropertiesRecord(**raw)
 
 
-def list_protein_sources_by_internal_id(
+def list_peptide_sources_by_internal_id(
     internal_id: int,
     *,
     seq_length: Optional[int] = None,
     page: int = 1,
     page_size: int = 20,
     session: Optional[requests.Session] = None,
-) -> PaginatedProteinSourceResult:
-    """GET /proteins/by-internal-id/{internal_id}/sources (ref protein)."""
+) -> PaginatedPeptideSourceResult:
+    """GET /proteins/by-internal-id/{internal_id}/sources (ref peptide)."""
     session = session or _get_session()
     url = _url(f"/proteins/by-internal-id/{internal_id}/sources")
     params = _prune_params(
@@ -683,16 +757,16 @@ def list_protein_sources_by_internal_id(
         r.raise_for_status()
         raw = r.json()
     except Timeout:
-        logging.error("Timeout list_protein_sources_by_internal_id %s", internal_id)
+        logging.error("Timeout list_peptide_sources_by_internal_id %s", internal_id)
         raise
     except RequestException:
-        logging.exception("list_protein_sources_by_internal_id failed")
+        logging.exception("list_peptide_sources_by_internal_id failed")
         raise
 
     rows = []
     for x in raw.get("data", []):
         rows.append(
-            ProteinSourceRecord(
+            PeptideSourceRecord(
                 source_id=int(x["source_id"]),
                 genome_id=x.get("genome_id"),
                 biome=x.get("biome"),
@@ -712,7 +786,7 @@ def list_protein_sources_by_internal_id(
                 strand=x.get("strand"),
             )
         )
-    return PaginatedProteinSourceResult(
+    return PaginatedPeptideSourceResult(
         total=int(raw["total"]),
         page=int(raw["page"]),
         page_size=int(raw["page_size"]),
@@ -721,7 +795,7 @@ def list_protein_sources_by_internal_id(
     )
 
 
-def get_proteins_by_family_50aai(
+def get_peptides_by_family_50aai(
     family_50aai: int,
     *,
     include_sequence: bool = False,
@@ -729,8 +803,8 @@ def get_proteins_by_family_50aai(
     page: int = 1,
     page_size: int = 20,
     session: Optional[requests.Session] = None,
-) -> PaginatedProteinMainResult:
-    """GET /proteins/by-family-50aai/{family_50aai} (ref protein)."""
+) -> PaginatedPeptideMainResult:
+    """GET /proteins/by-family-50aai/{family_50aai} (ref peptide)."""
     session = session or _get_session()
     url = _url(f"/proteins/by-family-50aai/{family_50aai}")
     params: Dict[str, Any] = _prune_params(
@@ -747,14 +821,14 @@ def get_proteins_by_family_50aai(
         r.raise_for_status()
         raw = r.json()
     except Timeout:
-        logging.error("Timeout get_proteins_by_family_50aai %s", family_50aai)
+        logging.error("Timeout get_peptides_by_family_50aai %s", family_50aai)
         raise
     except RequestException:
-        logging.exception("get_proteins_by_family_50aai failed")
+        logging.exception("get_peptides_by_family_50aai failed")
         raise
 
     rows = [
-        ProteinMainRow(
+        PeptideMainRow(
             internal_id=int(x["internal_id"]),
             accession_id=str(x["accession_id"]),
             seq_length=int(x["seq_length"]),
@@ -763,7 +837,7 @@ def get_proteins_by_family_50aai(
         )
         for x in raw.get("data", [])
     ]
-    return PaginatedProteinMainResult(
+    return PaginatedPeptideMainResult(
         total=int(raw["total"]),
         page=int(raw["page"]),
         page_size=int(raw["page_size"]),
@@ -796,7 +870,11 @@ def run_search_strategies(
     out: Dict[str, Any] = {}
 
     for step in steps:
-        kind = step if isinstance(step, SearchStrategyKind) else SearchStrategyKind(str(step))
+        kind = (
+            step
+            if isinstance(step, SearchStrategyKind)
+            else SearchStrategyKind(str(step))
+        )
         key = kind.value
         args = dict(kw.get(key, {}))
 
@@ -810,14 +888,14 @@ def run_search_strategies(
             out[key] = search_bio_source(session=session, **args)
         elif kind is SearchStrategyKind.TAXONOMY:
             out[key] = bio_source_taxonomy(session=session, **args)
-        elif kind is SearchStrategyKind.PROTEIN_BY_INTERNAL_ID:
-            out[key] = get_proteins_by_internal_id(session=session, **args)
-        elif kind is SearchStrategyKind.PROTEIN_PROPERTIES:
-            out[key] = get_protein_properties_by_internal_id(session=session, **args)
-        elif kind is SearchStrategyKind.PROTEIN_SOURCES:
-            out[key] = list_protein_sources_by_internal_id(session=session, **args)
-        elif kind is SearchStrategyKind.PROTEIN_BY_FAMILY:
-            out[key] = get_proteins_by_family_50aai(session=session, **args)
+        elif kind is SearchStrategyKind.PEPTIDE_BY_INTERNAL_ID:
+            out[key] = get_peptides_by_internal_id(session=session, **args)
+        elif kind is SearchStrategyKind.PEPTIDE_PROPERTIES:
+            out[key] = get_peptide_properties_by_internal_id(session=session, **args)
+        elif kind is SearchStrategyKind.PEPTIDE_SOURCES:
+            out[key] = list_peptide_sources_by_internal_id(session=session, **args)
+        elif kind is SearchStrategyKind.PEPTIDE_BY_FAMILY:
+            out[key] = get_peptides_by_family_50aai(session=session, **args)
         else:
             raise ValueError(f"Unknown search strategy: {step!r}")
 
@@ -830,13 +908,25 @@ class MiProbeSearchClient:
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or _get_session()
 
-    def embedding_similarity(self, sequence: str, k: int = 10) -> EmbeddingSearchResult:
-        return embedding_search_similar(sequence, k, session=self.session)
+    def embedding_similarity(
+        self,
+        sequence: str,
+        k: int = 10,
+        *,
+        timeout: Optional[Union[float, Tuple[float, float]]] = None,
+    ) -> EmbeddingSearchResult:
+        return embedding_search_similar(
+            sequence, k, session=self.session, timeout=timeout
+        )
 
-    def peptide_prop(self, length_bin: List[int], **kwargs: Any) -> PaginatedPeptidePropResult:
+    def peptide_prop(
+        self, length_bin: List[int], **kwargs: Any
+    ) -> PaginatedPeptidePropResult:
         return search_peptide_prop(length_bin, session=self.session, **kwargs)
 
-    def peptide_source_link(self, length_bin: List[int], **kwargs: Any) -> PaginatedPeptideSourceLinkResult:
+    def peptide_source_link(
+        self, length_bin: List[int], **kwargs: Any
+    ) -> PaginatedPeptideSourceLinkResult:
         return search_peptide_source_link(length_bin, session=self.session, **kwargs)
 
     def bio_source(self, **kwargs: Any) -> PaginatedBioSourceResult:
@@ -845,17 +935,31 @@ class MiProbeSearchClient:
     def taxonomy(self, level: str, **kwargs: Any) -> TaxonomyDrilldownResult:
         return bio_source_taxonomy(level, session=self.session, **kwargs)
 
-    def proteins_by_internal_id(self, internal_id: int, **kwargs: Any) -> ProteinsByInternalIdResult:
-        return get_proteins_by_internal_id(internal_id, session=self.session, **kwargs)
+    def peptides_by_internal_id(
+        self, internal_id: int, **kwargs: Any
+    ) -> PeptidesByInternalIdResult:
+        return get_peptides_by_internal_id(internal_id, session=self.session, **kwargs)
 
-    def protein_properties(self, internal_id: int, **kwargs: Any) -> ProteinPropertiesRecord:
-        return get_protein_properties_by_internal_id(internal_id, session=self.session, **kwargs)
+    def peptide_properties(
+        self, internal_id: int, **kwargs: Any
+    ) -> PeptidePropertiesRecord:
+        return get_peptide_properties_by_internal_id(
+            internal_id, session=self.session, **kwargs
+        )
 
-    def protein_sources(self, internal_id: int, **kwargs: Any) -> PaginatedProteinSourceResult:
-        return list_protein_sources_by_internal_id(internal_id, session=self.session, **kwargs)
+    def peptide_sources(
+        self, internal_id: int, **kwargs: Any
+    ) -> PaginatedPeptideSourceResult:
+        return list_peptide_sources_by_internal_id(
+            internal_id, session=self.session, **kwargs
+        )
 
-    def proteins_by_family(self, family_50aai: int, **kwargs: Any) -> PaginatedProteinMainResult:
-        return get_proteins_by_family_50aai(family_50aai, session=self.session, **kwargs)
+    def peptides_by_family(
+        self, family_50aai: int, **kwargs: Any
+    ) -> PaginatedPeptideMainResult:
+        return get_peptides_by_family_50aai(
+            family_50aai, session=self.session, **kwargs
+        )
 
     def run_strategies(
         self,

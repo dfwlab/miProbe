@@ -2,7 +2,7 @@
 
 An AI-friendly peptide sequence + embedding database client.
 
-https://miprobe-demo.streamlit.app/
+[https://miprobe-demo.streamlit.app/](https://miprobe-demo.streamlit.app/)
 
 ## Key dependencies
 
@@ -20,16 +20,16 @@ Install (example): `uv sync`
 
 All calls use `BASE_URL` (e.g. `https://www.biosino.org/iMAC/miProbe/api` or test host in development). Use `MiProbeSearchClient` or the module functions; `run_search_strategies` can chain several steps.
 
-| Kind                          | Idea                                                                                                                             |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Embedding similarity**      | POST body: amino-acid sequence → ProtT5 embedding → FAISS; returns ranked `internal_id` + cosine similarity.                     |
-| **Peptide properties**        | Filter `peptide_prop` by length buckets and optional net charge, hydrophobicity, pI, localization, membrane, etc.                |
-| **Peptide ↔ bio source link** | Distinct peptide–source pairs from `peptide_source_link` + `bio_source`, with length bins and optional taxonomy/habitat filters. |
-| **Bio source search**         | Paginated search on `bio_source` (keyword + field, or faceted filters).                                                          |
-| **Taxonomy drill-down**       | Distinct taxonomy values with counts at a chosen level, constrained by parent taxa.                                              |
-| **Protein by internal id**    | All `protein_main` rows for one numeric id (optional sequence in the payload).                                                   |
-| **Protein properties**        | Full physicochemical record from `peptide_prop` for one id (optionally disambiguate with `seq_length`).                          |
-| **Protein sources**           | Genomic / source annotations for one protein via `peptide_source_link` + `bio_source`.                                           |
-| **Protein by 50% AAI family** | Paginated `protein_main` listing for one `family_50aai`, with optional length bins and sequence toggle.                          |
+| Kind                                       | Idea                                                                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Search Peptide By Embedding Similarity** | POST body: amino-acid sequence → ProtT5 embedding → FAISS; returns ranked `internal_id` + cosine similarity.                            |
+| **Search Peptide By Properties**           | Search peptides by physicochemical and related features (length buckets, net charge, hydrophobicity, pI, localization, membrane, etc.). |
+| **Search Peptide By Bio Source Link**      | Distinct peptide–source pairs, with length bins and optional taxonomy or habitat filters.                                               |
+| **Search Bio Source**                      | Paginated search over biological sources (keyword + field, or faceted filters).                                                         |
+| **Search Taxonomy**                        | Distinct taxonomy values with counts at a chosen level, constrained by parent taxa.                                                     |
+| **Get Peptide By Internal Id**             | All sequence records for one numeric `internal_id` (optional sequence in the payload).                                                  |
+| **Get Peptide Properties By Internal Id**  | Fetch physicochemical properties for one `internal_id` (optionally disambiguate with `seq_length`).                                     |
+| **Get Peptide Sources By Internal Id**     | Genomic and sample-level source annotations for one peptide, linked from peptide to biological origin.                                  |
+| **Get Peptide By 50% AAI Family**          | Paginated listing for one `family_50aai`, with optional length bins and sequence toggle.                                                |
 
 Precomputed **embeddings by accession** use `GET …/embedding` with `accession_id` and `model_type` (`prott5` / `esm2`); see `get_embedding_by_id` in the same module.

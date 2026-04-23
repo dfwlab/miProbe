@@ -8,3 +8,5 @@ ref/
 *.pyc
 
 *.tar
+
+*.pkl
