@@ -8,17 +8,19 @@ An AI-friendly peptide sequence + embedding database client.
 
 Python library versions below match the resolved lockfile (`uv.lock`). The **uv** badge shows a typical CLI version; run `uv --version` on your machine to confirm.
 
-[![uv](https://img.shields.io/badge/uv-0.11.3-A162F7?logo=uv&logoColor=white)](https://github.com/astral-sh/uv)
-[![Python](https://img.shields.io/badge/python-≥3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.11.0-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.8.0-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.56.0-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[uv](https://github.com/astral-sh/uv)
+[Python](https://www.python.org/)
+[PyTorch](https://pytorch.org/)
+[scikit-learn](https://scikit-learn.org/)
+[Streamlit](https://streamlit.io/)
 
 Install (example): `uv sync`
 
 ## Search clients (`miprobe.fetcher`)
 
 All calls use `BASE_URL` (e.g. `https://www.biosino.org/iMAC/miProbe/api` or test host in development). Use `MiProbeSearchClient` or the module functions; `run_search_strategies` can chain several steps.
+
+You can use the [example.ipynb](example.ipynb) Jupyter notebook to test the API.
 
 | Kind                                       | Idea                                                                                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
