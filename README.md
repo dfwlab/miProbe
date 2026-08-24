@@ -4,6 +4,8 @@ An AI-friendly peptide sequence + embedding database client.
 
 [https://miprobe-demo.streamlit.app/](https://miprobe-demo.streamlit.app/)
 
+Tutorial : [https://www.biosino.org/iMAC/miProbe/docs](https://www.biosino.org/iMAC/miProbe/docs)
+
 ## Key dependencies
 
 Python library versions below match the resolved lockfile (`uv.lock`). The **uv** badge shows a typical CLI version; run `uv --version` on your machine to confirm.
