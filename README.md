@@ -2,7 +2,7 @@
 
 An AI-friendly peptide sequence + embedding database client.
 
-[https://miprobe-demo.streamlit.app/](https://miprobe-demo.streamlit.app/)
+Demo : [https://miprobe-demo.streamlit.app/](https://miprobe-demo.streamlit.app/)
 
 Tutorial : [https://www.biosino.org/iMAC/miProbe/docs](https://www.biosino.org/iMAC/miProbe/docs)
 
