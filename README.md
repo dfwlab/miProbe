@@ -18,7 +18,7 @@ Install (example): `uv sync`
 
 ## Search clients (`miprobe.fetcher`)
 
-All calls use `BASE_URL` (e.g. `[https://www.biosino.org/iMAC/miProbe/docs](https://www.biosino.org/iMAC/miProbe/docs)` or test host in development). Use `MiProbeSearchClient` or the module functions; `run_search_strategies` can chain several steps.
+All calls use `BASE_URL` (e.g. `https://www.biosino.org/iMAC/api` or test host in development). Use `MiProbeSearchClient` or the module functions; `run_search_strategies` can chain several steps.
 
 You can use the [example.ipynb](example.ipynb) Jupyter notebook to test the API.
 
